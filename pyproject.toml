@@ -1,5 +1,5 @@
 [project]
-name = "m0wut-drivers"
+name = "m0wut_drivers"
 version = "0.0.1"
 authors = [{ name = "M0WUT", email = "m0wutradio@gmail.com" }]
 description = "M0WUT Python drivers for various ICs on embedded platforms"

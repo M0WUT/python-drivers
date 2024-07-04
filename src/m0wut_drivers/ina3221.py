@@ -1,7 +1,8 @@
+from m0wut_drivers.i2c_device import I2CDevice
 import smbus2
 
 
-class INA3221:
+class INA3221(I2CDevice):
     # Register map
     REG_CONFIG = 0x00
     REG_CH1_SHUNT_VOLTAGE = 0x01
@@ -50,26 +51,20 @@ class INA3221:
         i2c_addr: int,
         shunt_resistances: list[float],
     ):
-        self.bus = i2c_bus
-        self.address = i2c_addr
+        super().__init__(i2c_bus=i2c_bus, i2c_addr=i2c_addr)
         self.shunt_resistances = shunt_resistances
         assert (
-            self._read_reg(self.REG_MANUFACTURER_ID)
+            self._read16(self.REG_MANUFACTURER_ID)
             == self.EXPECTED_MANUFACTURER_ID
         )
-        assert self._read_reg(self.REG_DIE_ID) == self.EXPECTED_DIE_ID
-
-    def _read_reg(self, reg_address: int) -> int:
-        data = self.bus.read_i2c_block_data(
-            i2c_addr=self.address, register=reg_address, length=2
-        )
-        return data[0] << 8 | data[1]
+        assert self._read16(self.REG_DIE_ID) == self.EXPECTED_DIE_ID
 
     def _read_voltage(self, reg_address: int) -> int:
         """
-        Voltage registers have format [MSB:LSB] of [sign bit, 12 bits of value, 3 padding zeros]
+        Voltage registers have format [MSB:LSB] of
+        [sign bit, 12 bits of value, 3 padding zeros]
         """
-        data = self._read_reg(reg_address)
+        data = self._read16(reg_address)
         sign = -1 if data & (1 << 15) else 1
         return sign * ((data >> 3) & 0xFFF)
 
