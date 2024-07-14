@@ -1,5 +1,30 @@
+from __future__ import annotations
+
 from m0wut_drivers.i2c_device import I2CDevice
 import smbus2
+
+
+class INA3221Channel:
+    def __init__(
+        self,
+        parent_device: INA3221,
+        channel_number: int,
+        shunt_resistance: float,
+    ):
+        if not 0 <= channel_number <= 2:
+            raise ValueError(f"Invalid channel number {channel_number}")
+        self.parent_device = parent_device
+        self.channel_number = channel_number
+        self.shunt_resistance = shunt_resistance
+
+    def read_voltage(self) -> float:
+        return self.parent_device._read_bus_voltage(self.channel_number)
+
+    def read_current(self) -> float:
+        return (
+            self.parent_device._read_shunt_voltage(self.channel_number)
+            * self.shunt_resistance
+        )
 
 
 class INA3221(I2CDevice):
@@ -44,6 +69,7 @@ class INA3221(I2CDevice):
     EXPECTED_DIE_ID = 0x3220
     SHUNT_VOLTAGE_PER_LSB = 40e-6
     BUS_VOLTAGE_PER_LSB = 8e-3
+    VALID_CHANNELS = [1, 2, 3]
 
     def __init__(
         self,
@@ -52,12 +78,26 @@ class INA3221(I2CDevice):
         shunt_resistances: list[float],
     ):
         super().__init__(i2c_bus=i2c_bus, i2c_addr=i2c_addr)
-        self.shunt_resistances = shunt_resistances
+        self._channels = [
+            INA3221Channel(
+                parent_device=self,
+                channel_number=x,
+                shunt_resistance=shunt_resistances[x - 1],
+            )
+            for x in self.VALID_CHANNELS
+        ]
         assert (
             self._read16(self.REG_MANUFACTURER_ID)
             == self.EXPECTED_MANUFACTURER_ID
         )
         assert self._read16(self.REG_DIE_ID) == self.EXPECTED_DIE_ID
+
+    def get_channels(self) -> list[INA3221Channel]:
+        return self._channels
+
+    def get_channel(self, channel_number: int) -> INA3221Channel:
+        self.validate_channel_number(channel_number)
+        return self._channels[channel_number - 1]
 
     def _read_voltage(self, reg_address: int) -> int:
         """
@@ -69,24 +109,23 @@ class INA3221(I2CDevice):
         return sign * ((data >> 3) & 0xFFF)
 
     def validate_channel_number(self, channel_number: int) -> None:
-        assert channel_number in [1, 2, 3]
+        assert channel_number in self.VALID_CHANNELS
 
-    def read_channel_voltage(self, channel_number: int) -> float:
+    def _read_bus_voltage(self, channel_number: int) -> float:
         self.validate_channel_number(channel_number)
         voltage = (
-            self._read_voltage(self.BUS_VOLTAGES[channel_number])
+            self._read_voltage(self.BUS_VOLTAGES[channel_number - 1])
             * self.BUS_VOLTAGE_PER_LSB
         )
-        return round(voltage, 4)
+        return voltage
 
-    def read_channel_current(self, channel_number: int) -> float:
+    def _read_shunt_voltage(self, channel_number: int) -> float:
         self.validate_channel_number(channel_number)
         voltage = (
-            self._read_voltage(self.SHUNT_VOLTAGES[channel_number])
-            * self.BUS_VOLTAGE_PER_LSB
+            self._read_voltage(self.SHUNT_VOLTAGES[channel_number - 1])
+            * self.SHUNT_VOLTAGE_PER_LSB
         )
-        current = voltage / self.shunt_resistances[channel_number]
-        return round(current, 5)
+        return voltage
 
 
 def main():
@@ -94,7 +133,8 @@ def main():
         x = INA3221(
             i2c_bus=bus, i2c_addr=0x40, shunt_resistances=[56e-3, 56e-3, 0.15]
         )
-        print(x.read_channel_voltage(1))
+        ch1 = x.get_channel(1)
+        print(ch1.read_voltage())
 
 
 if __name__ == "__main__":
