@@ -16,7 +16,6 @@ class DS2431:
         if len(eeprom_paths) != 1:
             raise NotImplementedError(eeprom_paths)
         self.file_path = eeprom_paths[0]
-        assert self.file_path, "Could not find EEPROM"
 
     def read(self) -> list[bytes]:
         return self.file_path.read_bytes()
