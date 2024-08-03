@@ -1,4 +1,5 @@
 import pathlib
+import time
 
 
 class GPIO:
@@ -20,14 +21,21 @@ class GPIO:
             with open((self.dir.parent / "export"), "w") as file:
                 file.write(str(self.gpio))
 
-        self.set_direction(direction)
+        # There is a processor dependant delay between writing a gpio to export
+        # and the folder being available to write to. This is a nasty hack but hey!
+        for i in range(5):
+            try:
+                self.set_direction(direction)
+            except PermissionError:
+                time.sleep(1)
+                assert i < 4, "Failed to write to GPIO file"
 
         if self.direction == GPIO.OUTPUT:
             self.write(initial_value)
 
     def set_direction(self, direction: bool | int) -> None:
         """Sets direction of GPIO pin"""
-        with open(self.dir / "direction", "w+") as file:
+        with open(self.dir / "direction", "w") as file:
             file.write("out" if direction == GPIO.OUTPUT else "in")
             self.direction = direction
 
