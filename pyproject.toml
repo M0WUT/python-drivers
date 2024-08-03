@@ -10,7 +10,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["smbus2", "gpsd-py3", "pyserial"]
+dependencies = ["smbus2", "gpsd-py3", "pyserial", "gpiozero"]
 
 [project.urls]
 Homepage = "https://github.com/M0WUT/python-drivers"

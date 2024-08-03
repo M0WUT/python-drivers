@@ -17,7 +17,7 @@ class GPIO:
 
         if not self.dir.exists():
             # Only export GPIO if it doesn't already exist
-            with open(self.dir / ".." / "export", "w") as file:
+            with open((self.dir.parent / "export"), "w") as file:
                 file.write(str(self.gpio))
 
         self.set_direction(direction)
@@ -27,7 +27,7 @@ class GPIO:
 
     def set_direction(self, direction: bool | int) -> None:
         """Sets direction of GPIO pin"""
-        with open(self.dir / "direction", "w") as file:
+        with open(self.dir / "direction", "w+") as file:
             file.write("out" if direction == GPIO.OUTPUT else "in")
             self.direction = direction
 
@@ -83,7 +83,7 @@ class MIO(GPIO):
 
 
 class RPiGPIO(GPIO):
-    BASE_ADDRESS = 0
+    BASE_ADDRESS = 512
 
     def __init__(
         self,
