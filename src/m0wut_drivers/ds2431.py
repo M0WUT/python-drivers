@@ -17,6 +17,12 @@ class DS2431:
             raise NotImplementedError(eeprom_paths)
         self.file_path = eeprom_paths[0]
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        pass
+
     def read(self) -> list[bytes]:
         return self.file_path.read_bytes()
 
@@ -26,4 +32,5 @@ class DS2431:
     def read_card_address(self):
         data = self.read()
         assert data[:3] == b"LID", "Invalid EEPROM found"
-        return int(data[3])
+        address = int(data[3])
+        return address

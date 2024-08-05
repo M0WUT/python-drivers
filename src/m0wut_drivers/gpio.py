@@ -12,10 +12,12 @@ class GPIO:
         self, gpio: int, direction: bool | int, initial_value: bool | int
     ):
         """Base class for all GPIO pins"""
-
         self.gpio = gpio
         self.dir = pathlib.Path("/sys") / "class" / "gpio" / f"gpio{self.gpio}"
 
+        self.direction = direction
+        self.initial_value = initial_value
+        self.value = initial_value
         if not self.dir.exists():
             # Only export GPIO if it doesn't already exist
             with open((self.dir.parent / "export"), "w") as file:
@@ -25,13 +27,19 @@ class GPIO:
         # and the folder being available to write to. This is a nasty hack but hey!
         for i in range(5):
             try:
-                self.set_direction(direction)
+                self.set_direction(self.direction)
             except PermissionError:
                 time.sleep(1)
                 assert i < 4, "Failed to write to GPIO file"
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args, **kwargs):
         if self.direction == GPIO.OUTPUT:
-            self.write(initial_value)
+            self.write(self.initial_value)
+        with open((self.dir.parent / "unexport"), "w") as file:
+            file.write(str(self.gpio))
 
     def set_direction(self, direction: bool | int) -> None:
         """Sets direction of GPIO pin"""
@@ -47,6 +55,7 @@ class GPIO:
         if self.direction == GPIO.OUTPUT:
             with open(self.dir / "value", "w") as file:
                 file.write("1" if value else "0")
+                self.value = bool(value)
 
     def read(self) -> bool:
         if self.direction == GPIO.INPUT:
@@ -54,6 +63,9 @@ class GPIO:
                 return bool(int(file.read().strip()))
         else:
             return False
+
+    def toggle(self) -> None:
+        self.write(not self.value)
 
 
 class AxiGpio(GPIO):

@@ -35,6 +35,14 @@ class MessageHandler:
         self.set_direction(self.RX)
         self.serial.reset_input_buffer()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self.gpio.write(GPIO.LOW)
+        self.serial.reset_input_buffer()
+        self.serial.reset_output_buffer()
+
     def set_direction(self, x: bool | int):
         self.gpio.write(x)
 
