@@ -27,7 +27,7 @@ class INA3221Channel:
         )
 
 
-class INA3221(I2CDevice):
+class INA3221:
     # Register map
     REG_CONFIG = 0x00
     REG_CH1_SHUNT_VOLTAGE = 0x01
@@ -77,7 +77,7 @@ class INA3221(I2CDevice):
         i2c_addr: int,
         shunt_resistances: list[float],
     ):
-        super().__init__(i2c_bus=i2c_bus, i2c_addr=i2c_addr)
+        self.dev = I2CDevice(i2c_bus=i2c_bus, i2c_addr=i2c_addr)
         self._channels = [
             INA3221Channel(
                 parent_device=self,
@@ -87,10 +87,10 @@ class INA3221(I2CDevice):
             for x in self.VALID_CHANNELS
         ]
         assert (
-            self._read16(self.REG_MANUFACTURER_ID)
+            self.dev._read16(self.REG_MANUFACTURER_ID)
             == self.EXPECTED_MANUFACTURER_ID
         )
-        assert self._read16(self.REG_DIE_ID) == self.EXPECTED_DIE_ID
+        assert self.dev._read16(self.REG_DIE_ID) == self.EXPECTED_DIE_ID
 
     def get_channels(self) -> list[INA3221Channel]:
         return self._channels
@@ -104,7 +104,7 @@ class INA3221(I2CDevice):
         Voltage registers have format [MSB:LSB] of
         [sign bit, 12 bits of value, 3 padding zeros]
         """
-        data = self._read16(reg_address)
+        data = self.dev._read16(reg_address)
         sign = -1 if data & (1 << 15) else 1
         return sign * ((data >> 3) & 0xFFF)
 

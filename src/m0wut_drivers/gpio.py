@@ -49,13 +49,14 @@ class GPIO:
 
     def write(self, value: bool | int) -> None:
         """
-        Sets the state of an output GPIO. Does nothing if GPIO is
-        configured as an input
+        Sets the state of an output GPIO.
         """
-        if self.direction == GPIO.OUTPUT:
-            with open(self.dir / "value", "w") as file:
-                file.write("1" if value else "0")
-                self.value = bool(value)
+        assert (
+            self.direction == GPIO.OUTPUT
+        ), f"Attempted to set state of GPIO {self.gpio} which is configured as an input"
+        with open(self.dir / "value", "w") as file:
+            file.write("1" if value else "0")
+            self.value = bool(value)
 
     def read(self) -> bool:
         if self.direction == GPIO.INPUT:
