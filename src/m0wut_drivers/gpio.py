@@ -1,23 +1,38 @@
+# Standard imports
 import pathlib
 import time
+from enum import Enum, auto
+
+# Third-party imports
+
+# Local imports
+
+
+class Polarity(Enum):
+    ACTIVE_HIGH = 0
+    ACTIVE_LOW = 1
 
 
 class GPIO:
     OUTPUT = 0
     INPUT = 1
-    HIGH = 1
-    LOW = 0
+    ASSERTED = 1
+    DEASSERTED = 0
 
     def __init__(
-        self, gpio: int, direction: bool | int, initial_value: bool | int
+        self,
+        gpio: int,
+        direction: bool | int,
+        polarity: Polarity = Polarity.ACTIVE_HIGH,
     ):
         """Base class for all GPIO pins"""
         self.gpio = gpio
         self.dir = pathlib.Path("/sys") / "class" / "gpio" / f"gpio{self.gpio}"
 
         self.direction = direction
-        self.initial_value = initial_value
-        self.value = initial_value
+        self._value = self.DEASSERTED
+        self.active_low: bool = bool(polarity == Polarity.ACTIVE_LOW)
+
         if not self.dir.exists():
             # Only export GPIO if it doesn't already exist
             with open((self.dir.parent / "export"), "w") as file:
@@ -37,7 +52,7 @@ class GPIO:
 
     def __exit__(self, *args, **kwargs):
         if self.direction == GPIO.OUTPUT:
-            self.write(self.initial_value)
+            self.write(self.DEASSERTED)
         with open((self.dir.parent / "unexport"), "w") as file:
             file.write(str(self.gpio))
 
@@ -50,23 +65,27 @@ class GPIO:
     def write(self, value: bool | int) -> None:
         """
         Sets the state of an output GPIO.
+        Setting value to True will assert the pin, polarity is handled automatically
         """
         assert (
             self.direction == GPIO.OUTPUT
         ), f"Attempted to set state of GPIO {self.gpio} which is configured as an input"
         with open(self.dir / "value", "w") as file:
-            file.write("1" if value else "0")
-            self.value = bool(value)
+            file.write("1" if (value ^ self.active_low) else "0")
+            self._value = bool(value)
 
     def read(self) -> bool:
+        """
+        Returns true if GPIO is asserted (not what logic level is on it)
+        """
         if self.direction == GPIO.INPUT:
             with open(self.dir / "value", "r") as file:
-                return bool(int(file.read().strip()))
+                return bool(int(file.read().strip())) ^ self.active_low
         else:
             return False
 
     def toggle(self) -> None:
-        self.write(not self.value)
+        self.write(not self._value)
 
 
 class AxiGpio(GPIO):
@@ -77,12 +96,12 @@ class AxiGpio(GPIO):
         self,
         axiGpio: int,
         direction: bool | int = GPIO.INPUT,
-        initial_value: bool | int = GPIO.LOW,
+        polarity=Polarity.ACTIVE_HIGH,
     ):
         super().__init__(
             gpio=axiGpio + self.BASE_ADDRESS,
             direction=direction,
-            initial_value=initial_value,
+            polarity=polarity,
         )
 
 
@@ -93,13 +112,13 @@ class MIO(GPIO):
     def __init__(
         self,
         mio: int,
-        direction: bool | int,
-        initial_value: bool | int,
+        direction: bool | int = GPIO.INPUT,
+        polarity=Polarity.ACTIVE_HIGH,
     ):
         super().__init__(
             gpio=mio + self.BASE_ADDRESS,
             direction=direction,
-            initial_value=initial_value,
+            polarity=polarity,
         )
 
 
@@ -110,10 +129,10 @@ class RPiGPIO(GPIO):
         self,
         gpio: int,
         direction: bool | int = GPIO.INPUT,
-        initial_value: bool | int = GPIO.LOW,
+        polarity=Polarity.ACTIVE_HIGH,
     ):
         super().__init__(
             gpio=gpio + self.BASE_ADDRESS,
             direction=direction,
-            initial_value=initial_value,
+            polarity=polarity,
         )

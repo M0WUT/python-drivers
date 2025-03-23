@@ -24,7 +24,7 @@ class SFP:
         self,
         i2c_bus: smbus2.SMBus,
         i2c_addr: int,
-        gpio_presetn: Optional[GPIO] = None,
+        gpio_present: Optional[GPIO] = None,
         gpio_tx_enable: Optional[GPIO] = None,
         gpio_tx_fault: Optional[GPIO] = None,
         gpio_los: Optional[GPIO] = None,
@@ -32,7 +32,7 @@ class SFP:
     ):
         self.dev = I2CDevice(i2c_bus=i2c_bus, i2c_addr=i2c_addr)
         self.logger = logger if logger else logging.getLogger(__name__)
-        self.gpio_presentn = gpio_presetn
+        self.present = gpio_present
         self.gpio_tx_enable = gpio_tx_enable
         self.gpio_tx_fault = gpio_tx_fault
         self.gpio_los = gpio_los
@@ -42,7 +42,7 @@ class SFP:
 
     def __exit__(self, *args, **kwargs):
         for gpio in [
-            self.gpio_presentn,
+            self.present,
             self.gpio_tx_enable,
             self.gpio_tx_fault,
             self.gpio_los,
@@ -54,15 +54,15 @@ class SFP:
     def is_present(self) -> bool:
         """
         Checks the presence detect pin
-        Return true if present (pin is low) OR present pin is not configured
+        Return true if present
         """
-        if self.gpio_presentn is None:
+        if self.present is None:
             self.logger.warning(
                 "Attempting to check if SFP connnector present but presence detect pin was not configured"
             )
             return True
         else:
-            return not self.gpio_presentn.read()
+            return self.present.read()
 
     def tx_fault(self) -> bool:
         """
@@ -150,7 +150,7 @@ class SFP:
 
 def main():
     with smbus2.SMBus(4) as bus, RPiGPIO(19) as sfp_presentn:
-        x = SFP(i2c_bus=bus, i2c_addr=0x50, gpio_presetn=sfp_presentn)
+        x = SFP(i2c_bus=bus, i2c_addr=0x50, gpio_present=sfp_presentn)
         print(x.read_sfp_info())
 
 
